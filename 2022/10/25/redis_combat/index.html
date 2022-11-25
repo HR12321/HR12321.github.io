@@ -1,0 +1,647 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Rediss实战篇 | Hr</title><meta name="author" content="Hr"><meta name="copyright" content="Hr"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="短信登录 基于Session实现登录  集群的Session共享问题 session共享问题：多台Tomcat并不共享session存储空间，当请求切换到不同tomcat服务时导致数据丢失的问题。  session的替代方案应该满足：  数据共享 内存存储 key、value结构  Redis实现s"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2022/10/25/redis_combat/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"languages":{"hits_empty":"找不到您查询的内容：${query}"}},
+  translate: {"defaultEncoding":2,"translateDelay":0,"msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":200},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Rediss实战篇',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2022-10-28 00:55:20'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><link rel="stylesheet" href="/css/custom.css"><link rel="stylesheet" href="/css/font.css"><link rel="stylesheet" href="/css/other.css"><meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="Hr" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/resource/img/avatar.jpeg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page group" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i><span> 生活</span><i class="fas fa-chevron-down"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/music/"><i class="fa-fw fas fa-music"></i><span> 音乐</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友情链接</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('/resource/img/redis2.jpeg')"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">Hr</a></span><div id="menus"><div id="search-button"><a class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page group" href="javascript:void(0);"><i class="fa-fw fas fa-list"></i><span> 生活</span><i class="fas fa-chevron-down"></i></a><ul class="menus_item_child"><li><a class="site-page child" href="/music/"><i class="fa-fw fas fa-music"></i><span> 音乐</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友情链接</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">Rediss实战篇</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2022-10-25T06:52:18.000Z" title="发表于 2022-10-25 14:52:18">2022-10-25</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2022-10-27T16:55:20.824Z" title="更新于 2022-10-28 00:55:20">2022-10-28</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/">学习笔记</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">字数总计:</span><span class="word-count">4.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="Rediss实战篇"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h1 id="短信登录"><a class="header-anchor" href="#短信登录"></a>短信登录</h1>
+<h2 id="基于Session实现登录"><a class="header-anchor" href="#基于Session实现登录"></a>基于Session实现登录</h2>
+<p><img src="/resource/image/hexo_combat/image-20221025023352389.png" alt="image-20221025023352389"></p>
+<h2 id="集群的Session共享问题"><a class="header-anchor" href="#集群的Session共享问题"></a>集群的Session共享问题</h2>
+<p>session共享问题：多台Tomcat并不共享session存储空间，当请求切换到不同tomcat服务时导致数据丢失的问题。</p>
+<p><img src="/resource/image/hexo_combat/image-20221025143801503.png" alt="image-20221025143801503"></p>
+<p>session的替代方案应该满足：</p>
+<ul>
+<li>数据共享</li>
+<li>内存存储</li>
+<li>key、value结构</li>
+</ul>
+<h2 id="Redis实现session登录"><a class="header-anchor" href="#Redis实现session登录"></a>Redis实现session登录</h2>
+<p><img src="/resource/image/hexo_combat/image-20221025144129300.png" alt="image-20221025144129300"></p>
+<h1 id="商户查询缓存"><a class="header-anchor" href="#商户查询缓存"></a>商户查询缓存</h1>
+<h2 id="什么是缓存"><a class="header-anchor" href="#什么是缓存"></a>什么是缓存</h2>
+<p><strong>缓存</strong>就是数据交换的缓冲区（称作Cache），是存贮数据的临时地方，一般读写性能较高。</p>
+<p><img src="/resource/image/hexo_combat/image-20221025144818311.png" alt="image-20221025144818311"></p>
+<p>缓存的作用：</p>
+<ul>
+<li>降低后端负载</li>
+<li>提高读写效率，降低响应时间</li>
+</ul>
+<p>缓存的成本：</p>
+<ul>
+<li>数据一致性成本</li>
+<li>代码维护成本</li>
+<li>运维成本</li>
+</ul>
+<h2 id="添加Redis缓存"><a class="header-anchor" href="#添加Redis缓存"></a>添加Redis缓存</h2>
+<p><img src="/resource/image/hexo_combat/image-20221025145736503.png" alt="image-20221025145736503"></p>
+<h2 id="缓存更新策略"><a class="header-anchor" href="#缓存更新策略"></a>缓存更新策略</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:center"></th>
+<th style="text-align:center">内存淘汰</th>
+<th style="text-align:center">超时剔除</th>
+<th style="text-align:center">主动更新</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">说明</td>
+<td style="text-align:center">不用自己维护，利用Redis的内存淘汰机制，当内存不足时自动淘汰部分数据。下次查询时更新缓存</td>
+<td style="text-align:center">给缓存数据添加TTL时间，到期后自动删除缓存。下次查询时更新缓存。</td>
+<td style="text-align:center">编写业务逻辑，在修改数据库的同时，更新缓存</td>
+</tr>
+<tr>
+<td style="text-align:center">一致性</td>
+<td style="text-align:center">差</td>
+<td style="text-align:center">一般</td>
+<td style="text-align:center">好</td>
+</tr>
+<tr>
+<td style="text-align:center">维护成本</td>
+<td style="text-align:center">无</td>
+<td style="text-align:center">低</td>
+<td style="text-align:center">高</td>
+</tr>
+</tbody>
+</table>
+<p>业务场景：</p>
+<ul>
+<li>低一致性需求：使用内存淘汰机制。例如店铺类型的查询缓存</li>
+<li>高一致性需求：主动更新，并以超时剔除作为兜底方案。例如店铺详情查询的缓存</li>
+</ul>
+<p>主动更新策略</p>
+<ul>
+<li>Cache Aside Pattern（用的做多）：由缓存的调用者，在更新数据库的同时更新缓存</li>
+<li>Read/Write Through Pattern：缓存与数据库整合为一个服务，由服务来维护一致性。调用者调用该服务，无需关心缓存一致性问题</li>
+<li>Write Behind Caching Pattern：调用者只操作缓存，由其他线程异步的将缓存数据持久化到数据库，保证最终一致。</li>
+</ul>
+<p>操作缓存和数据库时有三个问题需要考虑：</p>
+<ul>
+<li>删除缓存还是更新缓存？
+<ul>
+<li>更新缓存：每次更新数据库都更新缓存，无效写操作较多</li>
+<li><strong>删除缓存：更新数据库时让缓存失效，查询时再更新缓存</strong>   （用的最多）</li>
+</ul>
+</li>
+<li>如何保证缓存与数据库的操作同时成功或失败？
+<ul>
+<li>单体系统：将缓存与数据库操作放在一个事务</li>
+<li>分布式系统：利用TCC等分布式事务方案</li>
+</ul>
+</li>
+<li>先操作缓存还是先操作数据库？
+<ul>
+<li>先删除缓存，再操作数据库  （发生问题可能性高）</li>
+<li>先操作数据库，再删除缓存 （发生问题可能性低）</li>
+</ul>
+</li>
+</ul>
+<p><img src="/resource/image/hexo_combat/image-20221025160737128.png" alt="image-20221025160737128"></p>
+<p>缓存更新策略的最佳实践方案：</p>
+<ul>
+<li>低一致性需求：使用Redis自带的内存淘汰机制，超时剔除</li>
+<li>高一致性需求：主动更新，并以超时剔除作为兜底方案
+<ul>
+<li>读操作：
+<ul>
+<li>缓存命中则直接返回</li>
+<li>缓存未命中则查询数据库，并写入缓存，设定超时时间</li>
+</ul>
+</li>
+<li>写操作
+<ul>
+<li>先写数据库，然后再删除缓存</li>
+<li>要确保数据库与缓存操作的原子性</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="缓存穿透"><a class="header-anchor" href="#缓存穿透"></a>缓存穿透</h2>
+<p><strong>缓存穿透</strong>是指客户端请求的数据在缓存中和数据库中都不存在，这样缓存永远不会生效，这些请求都会打到数据库。</p>
+<p><img src="/resource/image/hexo_combat/image-20221025163325348.png" alt="image-20221025163325348"></p>
+<p>常见的解决方案有两种：</p>
+<ul>
+<li>缓存空对象
+<ul>
+<li>优点：实现简单，维护方便</li>
+<li>缺点：
+<ul>
+<li>额外的内存消耗</li>
+<li>可能造成短期的不一致</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>布隆过滤
+<ul>
+<li>优点：内存占用较少，没有多余key</li>
+<li>缺点：
+<ul>
+<li>实现复杂</li>
+<li>存在误判可能</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><img src="/resource/image/hexo_combat/image-20221025163605269.png" alt="image-20221025163605269"></p>
+<p>缓存穿透产生的原因是什么？</p>
+<ul>
+<li>用户请求的数据在缓存中和数据库中都不存在，不断发起这样的请求，给数据库带来巨大压力</li>
+</ul>
+<p>缓存穿透的解决方案有哪些？</p>
+<ul>
+<li>缓存null值</li>
+<li>布隆过滤</li>
+<li>增强id的复杂度，避免被猜测id规律</li>
+<li>做好数据的基础格式校验</li>
+<li>加强用户权限校验</li>
+<li>做好热点参数的限流</li>
+</ul>
+<h2 id="缓存雪崩"><a class="header-anchor" href="#缓存雪崩"></a>缓存雪崩</h2>
+<p>缓存雪崩是指在同一时段大量的缓存key同时失效或者Redis服务宕机，导致大量请求到达数据库，带来巨大压力</p>
+<p><img src="/resource/image/hexo_combat/image-20221025165516928.png" alt="image-20221025165516928"></p>
+<p>解决方案：</p>
+<ul>
+<li>给不同的key的TTL添加随机值</li>
+<li>利用Redis集群提高服务的可用性</li>
+<li>给缓存业务添加降级限流策略</li>
+<li>给业务添加多级缓存</li>
+</ul>
+<h2 id="缓存击穿"><a class="header-anchor" href="#缓存击穿"></a>缓存击穿</h2>
+<p><strong>缓存击穿问题</strong>也叫热点Key问题，就是一个被<strong>高并发访问</strong>并且<strong>缓存重建业务较复杂</strong>的key突然失效了，无数的请求访问会在瞬间给数据库带来巨大的冲击。</p>
+<p><img src="/resource/image/hexo_combat/image-20221025171012726.png" alt="image-20221025171012726"></p>
+<p>常见的解决方案有两种：</p>
+<ul>
+<li>互斥锁</li>
+<li>逻辑过期</li>
+</ul>
+<p><img src="/resource/image/hexo_combat/image-20221025172139579.png" alt="image-20221025172139579"></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">解决方案</th>
+<th style="text-align:center">优点</th>
+<th style="text-align:center">缺点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">互斥锁</td>
+<td style="text-align:center">-没有额外的内存消耗；保证一致性；实现简单</td>
+<td style="text-align:center">线程需要等待，性能受影响；可能由死锁风险</td>
+</tr>
+<tr>
+<td style="text-align:center">逻辑过期</td>
+<td style="text-align:center">线程无需等待，性能较好</td>
+<td style="text-align:center">不保证一致性；有额外内存消耗；实现复杂</td>
+</tr>
+</tbody>
+</table>
+<p><strong>基于互斥锁方式解决缓存击穿问题</strong></p>
+<p><img src="/resource/image/hexo_combat/image-20221025173422448.png" alt="image-20221025173422448"></p>
+<p>利用redis的setnx命令实现互斥锁</p>
+<p><strong>基于逻辑过期方式解决缓存击穿问题</strong></p>
+<p><img src="/resource/image/hexo_combat/image-20221025180326280.png" alt="image-20221025180326280"></p>
+<h1 id="优惠券秒杀"><a class="header-anchor" href="#优惠券秒杀"></a>优惠券秒杀</h1>
+<h2 id="全局唯一ID"><a class="header-anchor" href="#全局唯一ID"></a>全局唯一ID</h2>
+<p>全局ID生成器，是一种在分布式系统下用来生成全局唯一ID的工具，一般要满足下列特性：</p>
+<ul>
+<li>唯一性</li>
+<li>高可用</li>
+<li>高性能</li>
+<li>地址性</li>
+<li>安全性</li>
+</ul>
+<p>为了增加ID的安全性，我们可以不直接使用Redis自增的数值，而是拼接一些其他信息：</p>
+<p><img src="/resource/image/hexo_combat/image-20221026162546196.png" alt="image-20221026162546196"></p>
+<p>ID的组成：</p>
+<ul>
+<li>符号位：1bit，永远为0</li>
+<li>时间戳：31bit，以秒为单位，可以使用69年</li>
+<li>序列号：32bit，秒内的计数器，支持每秒产生2^32个不同的ID</li>
+</ul>
+<p>全局唯一Id生成策略：</p>
+<ul>
+<li>UUID</li>
+<li>Redis自增</li>
+<li>snowflake算法（学法算法）</li>
+<li>数据库自增</li>
+</ul>
+<p>Redis自增ID策略：</p>
+<ul>
+<li>每天一个key，方便冲击订单量</li>
+<li>ID构造是时间戳+计数器</li>
+</ul>
+<h2 id="实现优惠券秒杀下单"><a class="header-anchor" href="#实现优惠券秒杀下单"></a>实现优惠券秒杀下单</h2>
+<p><img src="/resource/image/hexo_combat/image-20221026171906521.png" alt="image-20221026171906521"></p>
+<h2 id="超卖问题"><a class="header-anchor" href="#超卖问题"></a>超卖问题</h2>
+<p><img src="/resource/image/hexo_combat/image-20221026174626781.png" alt="image-20221026174626781"></p>
+<p><img src="/resource/image/hexo_combat/image-20221026175135778.png" alt="image-20221026175135778"></p>
+<p><img src="/resource/image/hexo_combat/image-20221026175452836.png" alt="image-20221026175452836"></p>
+<p>超卖这样的线程安全问题，解决方案有哪些？</p>
+<ul>
+<li>悲观锁：添加同步锁，让线程串行执行
+<ul>
+<li>优点：简单粗暴</li>
+<li>缺点：性能一般</li>
+</ul>
+</li>
+<li>乐观锁：不加锁，在更新时判断是否有其他线程在修改
+<ul>
+<li>优点：性能好</li>
+<li>缺点：存在成功率低的问题</li>
+</ul>
+</li>
+</ul>
+<h2 id="一人一单"><a class="header-anchor" href="#一人一单"></a>一人一单</h2>
+<p><img src="/resource/image/hexo_combat/image-20221026181709970.png" alt="image-20221026181709970"></p>
+<p><img src="/resource/image/hexo_combat/image-20221026192222076.png" alt="image-20221026192222076"></p>
+<h2 id="分布式锁"><a class="header-anchor" href="#分布式锁"></a>分布式锁</h2>
+<p>**分布式锁：**满足分布式系统或集群模式下多进程可见并且互斥的锁</p>
+<p>分布式锁的核心是实现多进程之间互斥，而满足这一点的方式有很多，常见的有三种：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center"></th>
+<th style="text-align:center">Mysql</th>
+<th style="text-align:center">Redis</th>
+<th style="text-align:center">Zookeeper</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">互斥</td>
+<td style="text-align:center">利用mysql本身的互斥锁机制</td>
+<td style="text-align:center">利用setnx这样的互斥命令</td>
+<td style="text-align:center">利用节点的唯一性和有序性实现互斥</td>
+</tr>
+<tr>
+<td style="text-align:center">高可用</td>
+<td style="text-align:center">好</td>
+<td style="text-align:center">好</td>
+<td style="text-align:center">好</td>
+</tr>
+<tr>
+<td style="text-align:center">高性能</td>
+<td style="text-align:center">一般</td>
+<td style="text-align:center">好</td>
+<td style="text-align:center">一般</td>
+</tr>
+<tr>
+<td style="text-align:center">安全性</td>
+<td style="text-align:center">断开连接，自动释放锁</td>
+<td style="text-align:center">利用锁超时时间，到期释放，手动解锁</td>
+<td style="text-align:center">临时节点，断开连接自动释放</td>
+</tr>
+</tbody>
+</table>
+<p><img src="/resource/image/hexo_combat/image-20221026203420585.png" alt="image-20221026203420585"></p>
+<p>redis分布式锁误删问题：</p>
+<p><img src="/resource/image/hexo_combat/image-20221026214035444.png" alt="image-20221026214035444"></p>
+<p><img src="/resource/image/hexo_combat/image-20221026214337611.png" alt="image-20221026214337611"></p>
+<p>lua脚本</p>
+<p><img src="/resource/image/hexo_combat/image-20221026220812270.png" alt="image-20221026220812270"></p>
+<p>判断锁标示和释放锁是两个操作，不是原子的，有可能造成问题</p>
+<p>Redis提供了Lua脚本，在一个脚本中编写多条Redis命令，确保多条命令执行时的原子性。Lua是一种编程语言，他的基本语法大家可以参考网站：<a target="_blank" rel="noopener" href="https://www.runoob.com.lua/lua-turotial.html">https://www.runoob.com.lua/lua-turotial.html</a></p>
+<p>Redis提供的调用函数，语法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#执行redis命令</span><br><span class="line">redis.call(<span class="string">&#x27;命令名称&#x27;</span>,<span class="string">&#x27;key&#x27;</span>,<span class="string">&#x27;其他参数&#x27;</span>,...)</span><br></pre></td></tr></table></figure>
+<p>例如，我们要执行set name jack，则脚本是这样：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#执行 set name jack</span><br><span class="line">    redis.call(<span class="string">&#x27;set&#x27;</span>,<span class="string">&#x27;name&#x27;</span>,<span class="string">&#x27;jack&#x27;</span>)</span><br></pre></td></tr></table></figure>
+<p>例如，我们要先执行set name Rose，再执行get name，则脚本如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">#先执行set name Rose</span><br><span class="line">    redis.call(<span class="string">&#x27;set&#x27;</span>,<span class="string">&#x27;name&#x27;</span>,<span class="string">&#x27;Rose&#x27;</span>)</span><br><span class="line">#再执行get name</span><br><span class="line">    <span class="type">local</span> <span class="variable">name</span> <span class="operator">=</span> redis.call(<span class="string">&#x27;get&#x27;</span>,<span class="string">&#x27;name&#x27;</span>)</span><br><span class="line">#返回</span><br><span class="line">    <span class="keyword">return</span> name</span><br></pre></td></tr></table></figure>
+<p><img src="/resource/image/hexo_combat/image-20221026222702227.png" alt="image-20221026222702227"></p>
+<p><img src="/resource/image/hexo_combat/image-20221026223436870.png" alt="image-20221026223436870"></p>
+<p>java调用lua脚本改造分布式锁</p>
+<p><img src="/resource/image/hexo_combat/image-20221026223714294.png" alt="image-20221026223714294"></p>
+<p>基于Redis的分布式锁实现思路</p>
+<ul>
+<li>利用setnx获取锁，并设置过期时间，保存线程标示</li>
+<li>释放锁时先判断线程标示是否与自己一致，一致则删除锁</li>
+</ul>
+<p>特性：</p>
+<ul>
+<li>利用setnx满足互斥性</li>
+<li>利用setnx保证故障时依然能释放，避免死锁，提高安全性</li>
+<li>利用Redis集群保证高可用和高并发性</li>
+</ul>
+<h3 id="Redis分布式锁"><a class="header-anchor" href="#Redis分布式锁"></a>Redis分布式锁</h3>
+<p>使用Redis实现分布式锁，跟使用MySQL类似，也需要解决实现过程中遇到的各种问题，不过解决方案稍有不同。</p>
+<p>最简单的获取锁方式：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. 获取锁</span></span><br><span class="line">redis.setnx(<span class="string">&#x27;resource_name1&#x27;</span>, <span class="string">&#x27;owner1&#x27;</span>)</span><br><span class="line"><span class="comment">// 2. 释放锁</span></span><br><span class="line">redis.del(<span class="string">&#x27;resource_name1&#x27;</span>)</span><br></pre></td></tr></table></figure>
+<p>当“resource_name1”不存在时，set成功，也就是获取锁成功。</p>
+<p>不过还需要加上过期时间，防止没有释放锁。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. 获取锁</span></span><br><span class="line">redis.setnx(<span class="string">&#x27;resource_name1&#x27;</span>, <span class="string">&#x27;owner1&#x27;</span>)</span><br><span class="line"><span class="comment">// 2. 增加锁过期时间</span></span><br><span class="line">redis.exprire(<span class="string">&#x27;resource_name1&#x27;</span>, <span class="number">6</span>, TimeUnit.SECONDS)</span><br></pre></td></tr></table></figure>
+<p>又引入新问题了，两条命令不是原子的，可能获取锁之后还没来得及设置过期时间就宕机了，这该怎么办？</p>
+<p>好办，在Redis 2.6.12之后，提供一条复合命令：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis.set(<span class="string">&#x27;resource_name1&#x27;</span>, <span class="string">&#x27;owner1&#x27;</span>,&amp;quot;NX&amp;quot; &amp;quot;EX&amp;quot;, <span class="number">6</span>)</span><br></pre></td></tr></table></figure>
+<p>还有一个问题，释放锁的时候，并没有判断锁的持有者，有可能把其他线程持有的锁给释放了，这可不行，可以这样做：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 释放锁</span></span><br><span class="line"><span class="keyword">if</span> (<span class="string">&#x27;owner1&#x27;</span>.equals(redis.get(<span class="string">&#x27;resource_name1&#x27;</span>)))&#123;</span><br><span class="line"> redis.del(<span class="string">&#x27;resource_name1&#x27;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样总行了吧？还不行，还有个“锁续期”的问题没有解决。</p>
+<p>更简单了，Redis客户端Redisson已经帮我们实现续期的功能，叫“WatchDog”（看门狗），在我们调用lock自动唤醒“看门狗”。</p>
+<h3 id="Mysql分布式锁"><a class="header-anchor" href="#Mysql分布式锁"></a>Mysql分布式锁</h3>
+<p>使用MySQL实现分布式锁比较简单，建一张表：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE `distributed_lock` (</span><br><span class="line"> `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT &#x27;主键ID&#x27;,</span><br><span class="line"> `resource_name` varchar(200) NOT NULL DEFAULT &#x27;&#x27; COMMENT &#x27;资源名称（唯一索引）&#x27;,</span><br><span class="line"> PRIMARY KEY (`id`),</span><br><span class="line"> UNIQUE KEY `uk_resource_name` (`resource_name`)</span><br><span class="line">) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT=&#x27;分布式锁&#x27;;</span><br></pre></td></tr></table></figure>
+<p>获取锁的时候，就插入一条记录。插入成功就代表获取到锁，插入失败就代表获取锁失败。</p>
+<p><code>INSERT INTO distributed_lock (</code>resource_name<code>) VALUES ('资源1');</code></p>
+<p>释放锁的时候，就删除这条记录。</p>
+<p><code>DELETE FROM distributed_lock WHERE resource_name = '资源1';</code></p>
+<p>实现比较简单，不过还不能用于实际生产中，有几个问题没有解决：</p>
+<ul>
+<li>
+<p>这把锁不支持阻塞</p>
+<p>，insert失败立即就返回了。当然可以用while循环直到插入成功，不过自旋也会占用CPU。</p>
+</li>
+<li>
+<p>这把锁不是可重入的</p>
+<p>，已经获取到锁的线程再次插入也会失败，我们可以增加两列，一列记录获取到锁的节点和线程，另一列记录加锁次数。获取锁，次数加一，释放锁，次数减一，次数为零就删除这把锁。</p>
+</li>
+<li>
+<p>这把锁没有过期时间</p>
+<p>，如果业务处理失败或者机器宕机，导致没有释放锁，锁就会一直存在，其他线程也无法获取到锁。我们可以增加一列锁过期时间，再启动一个异步任务扫描过期时间大于当前时间的锁就删除。</p>
+</li>
+</ul>
+<p>就是这么麻烦，我们看一下优化之后的锁变成什么样了：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE `distributed_lock` (</span><br><span class="line"> `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT &#x27;主键ID&#x27;,</span><br><span class="line"> `resource_name` varchar(200) NOT NULL DEFAULT &#x27;&#x27; COMMENT &#x27;资源名称（唯一索引）&#x27;,</span><br><span class="line"> `owner` varchar(200) NOT NULL DEFAULT &#x27;&#x27; COMMENT &#x27;锁持有者（机器码+线程名称）&#x27;,</span><br><span class="line"> `lock_count` int NOT NULL DEFAULT &#x27;0&#x27; COMMENT &#x27;加锁次数&#x27;,</span><br><span class="line"> `expire_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT &#x27;锁过期时间&#x27;,</span><br><span class="line"> PRIMARY KEY (`id`),</span><br><span class="line"> UNIQUE KEY `uk_resource_name` (`resource_name`)</span><br><span class="line">) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT=&#x27;分布式锁&#x27;;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>这下应该完美了吧？不行，还有个问题：</p>
+<p>业务逻辑没处理完，锁过期了怎么办？</p>
+<p>假如我们设置锁过期时间是6秒，正常情况下业务逻辑可以在6秒内处理完成，但是当JVM发生FullGC或者调用第三方服务出现网络延迟，业务逻辑还没处理完，锁已经过期，被删掉，然后被其他线程获取到锁，岂不是要出问题？</p>
+<p>这就引入了另一个知识点“锁续期”：</p>
+<p>获取锁的同时，启动一个异步任务，每当业务执行到三分之一时间，也就是6秒中的第2秒的时候，就自动延长锁过期时间，继续延长到6秒，这样就能保证业务逻辑处理完成之前锁不会过期。</p>
+<h3 id="Zookeeper分布式锁"><a class="header-anchor" href="#Zookeeper分布式锁"></a>Zookeeper分布式锁</h3>
+<p><img src="/resource/image/hexo_combat/image-20221026201133166.png" alt="image-20221026201133166"></p>
+<p>节点有分为四种类型：</p>
+<p>持久节点：</p>
+<p>一旦创建，永久存储在服务器上，除非手动删除。</p>
+<p>临时节点：</p>
+<p>生命周期与客户端绑定，客户端断开连接，节点就被自动删除。</p>
+<p>持久顺序节点：</p>
+<p>特性同持久节点，只是在节点名称后面追加自增有序数字。</p>
+<p>临时顺序节点：</p>
+<p>特性同临时节点，只是在节点名称后面追加自增有序数字。</p>
+<p>zookeeper还有个监听-通知机制，客户端可以在资源节点上创建watch事件。当节点发生变化，会通知客户端，客户端可以根据变化做相应的业务处理。</p>
+<p>我们可以利用临时顺序节点的特性创建分布式锁，分以下三步：</p>
+<ul>
+<li>
+<p>在资源/resource1目录下创建临时顺序节点node</p>
+</li>
+<li>
+<p>获取/resource1目录下的所有节点，如果当前节点序号最小，代表加锁成功</p>
+</li>
+<li>
+<p>如果不是，就是watch监听序号最小的节点</p>
+</li>
+</ul>
+<p>实现逻辑很简单，我们来分析一下zookeeper实现分布式锁的优点：</p>
+<ul>
+<li>
+<p>由于创建的临时节点，断开连接后自动删除，所以无需设置锁超时时间，也就不用考虑不释放和锁续期</p>
+</li>
+<li>
+<p>由于节点上存储的创建人信息，锁也就支持可重入</p>
+</li>
+<li>
+<p>由于可以监听节点，也就实现了可阻塞</p>
+</li>
+</ul>
+<h2 id="Redis优化秒杀"><a class="header-anchor" href="#Redis优化秒杀"></a>Redis优化秒杀</h2>
+<p>基于setnx实现的分布式锁存在下面问题：</p>
+<ul>
+<li>不可重入：同一个线程无法多次获取同一把锁</li>
+<li>不可重试：获取锁只尝试一次就返回false，没有重试机制</li>
+<li>超时释放：锁超市释放虽然可以避免死锁，但如果是业务执行耗时较长，也会导致所释放，存在安全隐患</li>
+<li>主从一致性：如果Redis提供了主从集群，主从同步存在延迟，当主宕机时，如果从并同步主中的所数据，则会出现锁实现</li>
+</ul>
+<h3 id="Redisson"><a class="header-anchor" href="#Redisson"></a>Redisson</h3>
+<p>Redisson是一个在Redis的基础上实现的Java主内存数据网格（In-Memory Data Grid）。它不仅提供了一系列的分布式的Java常用对象，还提供了许多分布式服务，其中就包含了各种分布式锁的实现</p>
+<p>官网地址：<a target="_blank" rel="noopener" href="https://redisson.org">https://redisson.org</a></p>
+<p>GitHub地址：<a target="_blank" rel="noopener" href="https://github.com/redisson/redisson">https://github.com/redisson/redisson</a></p>
+<h3 id="Redisson入门"><a class="header-anchor" href="#Redisson入门"></a>Redisson入门</h3>
+<p><img src="/resource/image/hexo_combat/image-20221026231143734.png" alt="image-20221026231143734"></p>
+<p><img src="/resource/image/hexo_combat/image-20221026231639252.png" alt="image-20221026231639252"></p>
+<h3 id="Redisson可重入锁原理"><a class="header-anchor" href="#Redisson可重入锁原理"></a>Redisson可重入锁原理</h3>
+<p><img src="/resource/image/hexo_combat/image-20221027000108267.png" alt="image-20221027000108267"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027000411789.png" alt="image-20221027000411789"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027000431334.png" alt="image-20221027000431334"></p>
+<h3 id="锁重试和WatchDog机制"><a class="header-anchor" href="#锁重试和WatchDog机制"></a>锁重试和WatchDog机制</h3>
+<p><img src="/resource/image/hexo_combat/image-20221027010819314.png" alt="image-20221027010819314"></p>
+<p>Redisson分布式锁原理：</p>
+<ul>
+<li>可重入：利用hash结构记录线程id和可重入次数</li>
+<li>可重试：利用信号量和pubsub（发布订阅锁释放消息）功能实现等待、唤醒，获取锁失败的重试机制</li>
+<li>超时续约：利用watchDog，每隔一段世家（releaseTime/3）,重置超时时间</li>
+</ul>
+<p>Redisson分布式锁主从一致性问题</p>
+<p><img src="/resource/image/hexo_combat/image-20221027150939753.png" alt="image-20221027150939753"></p>
+<h2 id="Redis消息队列实现优化秒杀"><a class="header-anchor" href="#Redis消息队列实现优化秒杀"></a>Redis消息队列实现优化秒杀</h2>
+<p><img src="/resource/image/hexo_combat/image-20221027152534670.png" alt="image-20221027152534670"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027153345542.png" alt="image-20221027153345542"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027164958941.png" alt="image-20221027164958941"></p>
+<p>消息队列（Message Queue），字面意思就是存放消息的队列。最简单的消息队列模型包括3ge角色：</p>
+<ul>
+<li>消息队列：存储和管理消息，也被称为消息代理（Message Broker）</li>
+<li>生产者：发送消息到消息队列</li>
+<li>消费者：从消息队列获取消息并处理消息</li>
+</ul>
+<p>Redis提供了三种不同的方式来实现消息队列：</p>
+<ul>
+<li>lis结构：基于List结构模拟消息队列</li>
+<li>PubSub：基本的点对点消息模型</li>
+<li>Stream：比较完善的消息队列模型</li>
+</ul>
+<p><img src="/resource/image/hexo_combat/image-20221027165940585.png" alt="image-20221027165940585"></p>
+<p>基于List的消息队列有哪些优缺点？</p>
+<p>优点：</p>
+<ul>
+<li>利用Redis存储，不受限于JVM内存上线</li>
+<li>基于Redis的持久化机制，数据安全性有保证</li>
+<li>可以满足消息有序性</li>
+</ul>
+<p>缺点：</p>
+<ul>
+<li>无法避免消息丢失</li>
+<li>只支持但消费者</li>
+</ul>
+<p>PubSub（发布订阅）是Redis2.0版本引入的消息传递模型。顾名思义，消费者可以订阅一个或多个channel，生产者向channel发送消息后，所有订阅者都能收到相关消息。</p>
+<ul>
+<li>SUBSCRIBE channel [channel]:订阅一个或多个频道</li>
+<li>PUBLISH channel msg：向一个频道发送消息</li>
+<li>PSUBSCRIBE pattern [pattern] : 订阅与pattern格式匹配的所有频道</li>
+</ul>
+<p>基于PubSub的消息队列有哪些优缺点？</p>
+<p>优点：</p>
+<ul>
+<li>采用发布订阅模型，支持多生产、多消费</li>
+</ul>
+<p>缺点：</p>
+<ul>
+<li>不支持数据持久化</li>
+<li>无法避免消息丢失</li>
+<li>消息堆积有上线，超出时数据丢失</li>
+</ul>
+<p>基于Stream的消息队列</p>
+<p>Stream时Redis5.0引入的一种新数据类型，可以实现一个功能非常完善的消息队列。</p>
+<p><img src="/resource/image/hexo_combat/image-20221027172611714.png" alt="image-20221027172611714"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027172804790.png" alt="image-20221027172804790"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027173130097.png" alt="image-20221027173130097"></p>
+<p>Stream类型消息队列的XREAD命令特点：</p>
+<ul>
+<li>消息可回溯</li>
+<li>一个消息可以被多个消费者读取</li>
+<li>可以阻塞读取</li>
+<li>有消息漏读的风险</li>
+</ul>
+<p>基于Stream的消息队列-消费者组：</p>
+<p>消费者组：将多个消费者划分到一个组中，监听同一个队列。具备下列特点：</p>
+<ul>
+<li>消息分流：队列中的消息会分流给组内的不同消费者，而不是重复消费，从而加快消息处理的速度</li>
+<li>消息标示：消费者会维护一个标示，记录最后一个被处理的消息，哪怕消费者宕机重启，还会从标示之后读取消息。确保每一个消息都会被消费</li>
+<li>消息确认：消费者获取消息后，消息处于pending状态，并存入一个pending-list。当处理完成后需要通过XACK来确认消息，标记消息为已处理，才会从pending-list移除</li>
+</ul>
+<p><img src="/resource/image/hexo_combat/image-20221027173843424.png" alt="image-20221027173843424"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027173913578.png" alt="image-20221027173913578"></p>
+<p><img src="/resource/image/hexo_combat/image-20221027174033086.png" alt="image-20221027174033086"></p>
+<p>STREAM消息队列的XREADGROUP命令特点：</p>
+<ul>
+<li>消息可回溯</li>
+<li>可以多消费者争抢消息，加快消费速度</li>
+<li>可以阻塞读取</li>
+<li>没有消息漏读的风险</li>
+<li>有消息确认机制，保证消息至少被消费一次</li>
+</ul>
+<p><img src="/resource/image/hexo_combat/image-20221027174236325.png" alt="image-20221027174236325"></p>
+<h1 id="达人探店"><a class="header-anchor" href="#达人探店"></a>达人探店</h1>
+<h1 id="好友关注"><a class="header-anchor" href="#好友关注"></a>好友关注</h1>
+<h1 id="附近的商户"><a class="header-anchor" href="#附近的商户"></a>附近的商户</h1>
+<h1 id="用户签到"><a class="header-anchor" href="#用户签到"></a>用户签到</h1>
+<h1 id="UV统计"><a class="header-anchor" href="#UV统计"></a>UV统计</h1>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="http://example.com">Hr</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://example.com/2022/10/25/redis_combat/">http://example.com/2022/10/25/redis_combat/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://example.com" target="_blank">Hr</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Redis/">Redis</a><a class="post-meta__tags" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><a class="post-meta__tags" href="/tags/NoSql/">NoSql</a></div><div class="post_share"><div class="social-share" data-image="/resource/img/redis2.jpeg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2022/10/23/redis_principle/"><img class="prev-cover" src="/resource/img/redis2.jpeg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">Redis原理篇</div></div></a></div><div class="next-post pull-right"><a href="/2022/10/25/redis_advanced/"><img class="next-cover" src="/resource/img/redis2.jpeg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Rediss高级篇</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><div><a href="/2022/10/19/Redis/" title="Redis基础篇"><img class="cover" src="/resource/img/redis2.jpeg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2022-10-19</div><div class="title">Redis基础篇</div></div></a></div><div><a href="/2022/10/25/redis_advanced/" title="Rediss高级篇"><img class="cover" src="/resource/img/redis2.jpeg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2022-10-25</div><div class="title">Rediss高级篇</div></div></a></div><div><a href="/2022/10/23/redis_principle/" title="Redis原理篇"><img class="cover" src="/resource/img/redis2.jpeg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2022-10-23</div><div class="title">Redis原理篇</div></div></a></div><div><a href="/2022/11/09/mysql_questions/" title="Mysql总结"><img class="cover" src="/resource/img/redis2.jpeg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2022-11-09</div><div class="title">Mysql总结</div></div></a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/resource/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">Hr</div><div class="author-info__description">落霞与孤鹜齐飞，秋水共长天一色</div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/HR12321"><i class="fab fa-github"></i><span>GitHub</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/HR12321" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="/1982379405@qq.com" target="_blank" title="Email"><i class="fas fa-envelope"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%9F%AD%E4%BF%A1%E7%99%BB%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">短信登录</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9F%BA%E4%BA%8ESession%E5%AE%9E%E7%8E%B0%E7%99%BB%E5%BD%95"><span class="toc-number">1.1.</span> <span class="toc-text">基于Session实现登录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%9B%86%E7%BE%A4%E7%9A%84Session%E5%85%B1%E4%BA%AB%E9%97%AE%E9%A2%98"><span class="toc-number">1.2.</span> <span class="toc-text">集群的Session共享问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Redis%E5%AE%9E%E7%8E%B0session%E7%99%BB%E5%BD%95"><span class="toc-number">1.3.</span> <span class="toc-text">Redis实现session登录</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%95%86%E6%88%B7%E6%9F%A5%E8%AF%A2%E7%BC%93%E5%AD%98"><span class="toc-number">2.</span> <span class="toc-text">商户查询缓存</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E7%BC%93%E5%AD%98"><span class="toc-number">2.1.</span> <span class="toc-text">什么是缓存</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%B7%BB%E5%8A%A0Redis%E7%BC%93%E5%AD%98"><span class="toc-number">2.2.</span> <span class="toc-text">添加Redis缓存</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E6%9B%B4%E6%96%B0%E7%AD%96%E7%95%A5"><span class="toc-number">2.3.</span> <span class="toc-text">缓存更新策略</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F"><span class="toc-number">2.4.</span> <span class="toc-text">缓存穿透</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E9%9B%AA%E5%B4%A9"><span class="toc-number">2.5.</span> <span class="toc-text">缓存雪崩</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E5%87%BB%E7%A9%BF"><span class="toc-number">2.6.</span> <span class="toc-text">缓存击穿</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BC%98%E6%83%A0%E5%88%B8%E7%A7%92%E6%9D%80"><span class="toc-number">3.</span> <span class="toc-text">优惠券秒杀</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%A8%E5%B1%80%E5%94%AF%E4%B8%80ID"><span class="toc-number">3.1.</span> <span class="toc-text">全局唯一ID</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E7%8E%B0%E4%BC%98%E6%83%A0%E5%88%B8%E7%A7%92%E6%9D%80%E4%B8%8B%E5%8D%95"><span class="toc-number">3.2.</span> <span class="toc-text">实现优惠券秒杀下单</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%B6%85%E5%8D%96%E9%97%AE%E9%A2%98"><span class="toc-number">3.3.</span> <span class="toc-text">超卖问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E4%BA%BA%E4%B8%80%E5%8D%95"><span class="toc-number">3.4.</span> <span class="toc-text">一人一单</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81"><span class="toc-number">3.5.</span> <span class="toc-text">分布式锁</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Redis%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81"><span class="toc-number">3.5.1.</span> <span class="toc-text">Redis分布式锁</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Mysql%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81"><span class="toc-number">3.5.2.</span> <span class="toc-text">Mysql分布式锁</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Zookeeper%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81"><span class="toc-number">3.5.3.</span> <span class="toc-text">Zookeeper分布式锁</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Redis%E4%BC%98%E5%8C%96%E7%A7%92%E6%9D%80"><span class="toc-number">3.6.</span> <span class="toc-text">Redis优化秒杀</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Redisson"><span class="toc-number">3.6.1.</span> <span class="toc-text">Redisson</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Redisson%E5%85%A5%E9%97%A8"><span class="toc-number">3.6.2.</span> <span class="toc-text">Redisson入门</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Redisson%E5%8F%AF%E9%87%8D%E5%85%A5%E9%94%81%E5%8E%9F%E7%90%86"><span class="toc-number">3.6.3.</span> <span class="toc-text">Redisson可重入锁原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%94%81%E9%87%8D%E8%AF%95%E5%92%8CWatchDog%E6%9C%BA%E5%88%B6"><span class="toc-number">3.6.4.</span> <span class="toc-text">锁重试和WatchDog机制</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Redis%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97%E5%AE%9E%E7%8E%B0%E4%BC%98%E5%8C%96%E7%A7%92%E6%9D%80"><span class="toc-number">3.7.</span> <span class="toc-text">Redis消息队列实现优化秒杀</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%BE%BE%E4%BA%BA%E6%8E%A2%E5%BA%97"><span class="toc-number">4.</span> <span class="toc-text">达人探店</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%A5%BD%E5%8F%8B%E5%85%B3%E6%B3%A8"><span class="toc-number">5.</span> <span class="toc-text">好友关注</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E9%99%84%E8%BF%91%E7%9A%84%E5%95%86%E6%88%B7"><span class="toc-number">6.</span> <span class="toc-text">附近的商户</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%94%A8%E6%88%B7%E7%AD%BE%E5%88%B0"><span class="toc-number">7.</span> <span class="toc-text">用户签到</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#UV%E7%BB%9F%E8%AE%A1"><span class="toc-number">8.</span> <span class="toc-text">UV统计</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2022/11/09/mysql_questions/" title="Mysql总结"><img src="/resource/img/redis2.jpeg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Mysql总结"/></a><div class="content"><a class="title" href="/2022/11/09/mysql_questions/" title="Mysql总结">Mysql总结</a><time datetime="2022-11-09T09:52:18.000Z" title="发表于 2022-11-09 17:52:18">2022-11-09</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2022/11/01/java_base/" title="Java基础"><img src="/resource/img/redis2.jpeg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Java基础"/></a><div class="content"><a class="title" href="/2022/11/01/java_base/" title="Java基础">Java基础</a><time datetime="2022-11-01T06:52:18.000Z" title="发表于 2022-11-01 14:52:18">2022-11-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2022/10/25/redis_advanced/" title="Rediss高级篇"><img src="/resource/img/redis2.jpeg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rediss高级篇"/></a><div class="content"><a class="title" href="/2022/10/25/redis_advanced/" title="Rediss高级篇">Rediss高级篇</a><time datetime="2022-10-25T06:52:18.000Z" title="发表于 2022-10-25 14:52:18">2022-10-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2022/10/25/redis_combat/" title="Rediss实战篇"><img src="/resource/img/redis2.jpeg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rediss实战篇"/></a><div class="content"><a class="title" href="/2022/10/25/redis_combat/" title="Rediss实战篇">Rediss实战篇</a><time datetime="2022-10-25T06:52:18.000Z" title="发表于 2022-10-25 14:52:18">2022-10-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2022/10/23/redis_principle/" title="Redis原理篇"><img src="/resource/img/redis2.jpeg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Redis原理篇"/></a><div class="content"><a class="title" href="/2022/10/23/redis_principle/" title="Redis原理篇">Redis原理篇</a><time datetime="2022-10-23T06:52:18.000Z" title="发表于 2022-10-23 14:52:18">2022-10-23</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2022 By Hr</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div><div class="footer_custom_text">Hi, welcome to my blog!</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="translateLink" type="button" title="简繁转换">簡</button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><span id="loading-status"></span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="is-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据库加载中</span></div><div class="search-wrap"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="搜索文章" type="text"/></div></div><hr/><div id="local-search-results"></div></div></div><div id="search-mask"></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="/js/tw_cn.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.min.js"></script><script src="/js/search/local-search.js"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
