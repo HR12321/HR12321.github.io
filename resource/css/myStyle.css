@@ -107,3 +107,10 @@ mark{
     background: transparent;
     font-weight: bold;
 }
+
+/*-----------------footer取消蓝色背景----------------------*/
+
+#footer {
+    background-color: transparent !important;
+    background: transparent !important;
+}
